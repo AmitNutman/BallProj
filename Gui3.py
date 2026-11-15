@@ -19,32 +19,34 @@ class Gui():
         self.printing_q = printing_q
         self.collision_q = collision_q
         self.gui_q = gui_q
+        self.balls = {}
 
 
+    def draw_ball(self, ball_processes):
+        self.printing_q.put("GUI process started")
+        running = True
+        while running:
+            while not self.gui_q.empty():
+                self.balls = self.gui_q.get()
 
-
-    def draw_ball(self):
-        while True:
-
-            #clean the screen before all balls in the list will be drawn again
-            self.screen.fill((0,0,0))
-
+            self.screen.fill((0, 0, 0))
+            #value = (color, pos, radius)
             for ball in self.balls.values():
-                #color, pos, radius
                 pygame.draw.circle(self.screen, ball[0], ball[1], ball[2])
 
             pygame.display.flip()
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    # closes py_game window
-                    pygame.quit()
-                    # closes the program
-                    sys.exit()
+                    running = False
 
-            #how many active threads are in the system - main thread is always active
-            if threading.active_count() < 2:
-                # closes py_game window
-                pygame.quit()
-                # closes the program
-                sys.exit()
+            #checks if all ball processes finished
+            not_one_process_working = True
+            for p in ball_processes:
+                if p.is_alive():
+                    not_one_process_working = False
+            if(not_one_process_working):
+                running = False
+
+        self.printing_q.put("GUI process ended")
+        pygame.quit()

@@ -1,9 +1,10 @@
 import random
 import time
-from gui import GameGUI
-import threading
 import multiprocessing
-
+from Gui3 import Gui
+from Printing3 import Printing
+from Collision3 import Collision
+import sys
 
 
 class BallClass():
@@ -16,74 +17,66 @@ class BallClass():
         self.collision_q = collision_q
         self.gui_q = gui_q
 
-
-
-
-    def create_ball(self, num_ball):
+    def main_loop(self, num_ball):
+        self.printing_q.put(f"Ball process {num_ball} started")
         color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         num_of_shows = random.randint(1, 10)
+
         for i in range(num_of_shows):
             ball_x = random.randint(1 + 25, 700 - 25)
             ball_y = random.randint(1 + 25, 500 - 25)
             pos = (ball_x, ball_y)
 
             self.collision_q.put(("ball_added", (num_ball, color, pos)))
-            # self.balls[num_ball] = (color, pos, 25)
-
-
-            # print(f"ball number {num_ball} add")
-            # print("num balls on screen: " + str(len(self.balls)))
-
+            #show on screen for 2 seconds
             time.sleep(2)
 
-            """
-            #delete the ball so it will disapear
-            if num_ball in self.balls:
-                del self.balls[num_ball]
-            """
-
-            """
-            print(f"ball number {num_ball} deleted")
-            print("num balls on screen: " + str(len(self.balls)))
-            """
-
+            self.collision_q.put(("ball_deleted", num_ball))
+            #delete from screen for 0.5 seconds
             time.sleep(0.5)
 
-
-    def roll_new_pos(self):
-        """
-
-        :return:
-        """
-        ball_x = random.randint(1 + 25, 700 - 25)
-        ball_y = random.randint(1 + 25, 500 - 25)
-        pos = (ball_x, ball_y)
-        return pos
-
-
-
-    def main_loop(self):
-        while True:
-            if not self.ball_q.isEmpty():
-                data = self.ball_q.get()
-                if not data is None:
-                    if data[0] == "roll_new_pos":
-                        self.roll_new_pos()
-                    elif data[0] == "create_ball":
-                        self.create_ball(data[1][0])
-
+        self.printing_q.put(f"Ball process {num_ball} ended")
+        self.collision_q.put(("ball_finished", num_ball))
 
 if __name__ == "__main__":
 
-    ball_q = multiprocessing.Queue
-    printing_q = multiprocessing.Queue
-    collision_q = multiprocessing.Queue
-    gui_q = multiprocessing.Queue
+    width, height = 700, 500
 
-    ball_class = BallClass(ball_q, printing_q, collision_q, gui_q)
+    ball_q = multiprocessing.Queue()
+    printing_q = multiprocessing.Queue()
+    collision_q = multiprocessing.Queue()
+    gui_q = multiprocessing.Queue()
 
-
-    printer_process = multiprocessing.Process(target=main_loop, args=(print_queue,))
+   #printing process so it will ask for num balls
+    printer = Printing(width, height, ball_q, printing_q, collision_q, gui_q)
+    printer_process = multiprocessing.Process(target=printer.main_loop, args=(sys.stdin.fileno(),))
     printer_process.start()
+
+    num_balls = ball_q.get()
+
+
+    collision = Collision(width, height, ball_q, printing_q, collision_q, gui_q)
+    collision_process = multiprocessing.Process(target=collision.main_loop)
+    collision_process.start()
+
+    #create process for every ball
+    ball_processes = []
+    for i in range(1, num_balls + 1):
+        ball = BallClass(ball_q, printing_q, collision_q, gui_q)
+        p = multiprocessing.Process(target=ball.main_loop, args=(i,))
+        ball_processes.append(p)
+        p.start()
+
+    #after there is process for every ball - process to draw them
+    gui = Gui(width, height, ball_q, printing_q, collision_q, gui_q)
+    gui.draw_ball(ball_processes)
+
+
+
+    collision_q.put("STOP")
+    collision_process.join()
+
+    printing_q.put("STOP")
+    printer_process.join()
 
 

@@ -1,5 +1,6 @@
 import math
 import multiprocessing
+import random
 
 
 class Collision():
@@ -13,6 +14,8 @@ class Collision():
         self.printing_q = printing_q
         self.collision_q = collision_q
         self.gui_q = gui_q
+        self.width = width  # screen width
+        self.height = height  # screen height
 
 
 
@@ -24,10 +27,14 @@ class Collision():
         :param pos:
         :return:
         """
-        while not self.check_if_collision(pos):
-            pass
-            #pos = call the roll_new_pos in ballclass
+        while self.check_if_collision(pos):
+            #if collision random another place
+            ball_x = random.randint(1 + 25, self.width - 25)
+            ball_y = random.randint(1 + 25, self.height - 25)
+            pos = (ball_x, ball_y)
         self.balls[num_ball] = (color, pos, 25)
+        self.gui_q.put(self.balls)
+        self.printing_q.put(("ball_added", num_ball, len(self.balls)))
 
 
     def ball_deleted(self, num_ball):
@@ -39,6 +46,8 @@ class Collision():
         # delete the ball so it will disapear
         if num_ball in self.balls:
             del self.balls[num_ball]
+            self.gui_q.put(self.balls)
+            self.printing_q.put(("ball_deleted", num_ball, len(self.balls)))
 
 
     def check_if_collision(self, pos):
@@ -48,18 +57,34 @@ class Collision():
        :return: true if collision, false if not collision
        """
        collision = False
-       for ball in self.balls:
+       for ball in self.balls.values():
            if not collision:
                 x = ball[1][0]
                 y = ball[1][1]
 
-                # checks if the distance is below 25
+                # checks if the distance is below 50 - 2 radius
                 distance = math.hypot((x - pos[0]), (y - pos[1]))
 
-                #if distance <= radius
-                if distance <= 25:
+                #if distance <= 2 radius
+                if distance <= 50:
                     collision = True
        return collision
+
+    def main_loop(self):
+        self.printing_q.put("Collision process started")
+        while True:
+            data = self.collision_q.get()
+            if data == "STOP":
+                self.printing_q.put("Collision process ended")
+                self.gui_q.put("STOP")
+                break
+            opcode, args = data
+            if opcode == "ball_added":
+                num_ball, color, pos = args
+                self.ball_added(num_ball, color, pos)
+            elif opcode == "ball_deleted":
+                num_ball = args
+                self.ball_deleted(num_ball)
 
 
 
