@@ -1,11 +1,17 @@
-import multiprocessing
+#https://github.com/AmitNutman/BallProj
+#עמית נוטמן ואורי פרסמן
+
 import sys
 import os
 
 class Printing():
-    def __init__(self, width, height, ball_q, printing_q, collision_q, gui_q):
+    def __init__(self, ball_q, printing_q, collision_q, gui_q):
         """
-
+        constructor
+        :param ball_q: the q for the ball process
+        :param printing_q: the q fot the printing process
+        :param collision_q: the q for the collision process
+        :param gui_q: the q for the drawing process
         """
         self.ball_q = ball_q
         self.printing_q = printing_q
@@ -17,8 +23,8 @@ class Printing():
 
     def input_num_of_balls(self):
         """
-
-        :return:
+        asks user to enter num balls
+        :return: num balls
         """
         num_balls = input("enter num balls: ")
 
@@ -30,9 +36,10 @@ class Printing():
 
     def ball_added(self, num_ball, count):
         """
-
-        :param num_ball:
-        :return:
+        prints a new ball was added
+        :param num_ball: the number of the ball added
+        :param count: the number of all balls on screen
+        :return: None
         """
         print(f"ball number {num_ball} add")
         print("num balls on screen: " + str(count))
@@ -41,20 +48,25 @@ class Printing():
 
     def ball_deleted(self, num_ball, count):
         """
-
-        :param num_ball:
-        :return:
+        prints a ball was deleted
+        :param num_ball: the number of the ball deleted
+        :param count: the number of all balls on screen
+        :return: None
         """
         print(f"ball number {num_ball} deleted")
         print("num balls on screen: " + str(count))
 
     def main_loop(self, stdin_fd):
+        """
+        does what it needs to do based on q
+        :param stdin_fd: so the user can enter input
+        :return: None
+        """
         print("Printing process started")
 
         #open key board so we can enter input
         sys.stdin = os.fdopen(stdin_fd)
 
-        print("Printing process started")
         num_balls = self.input_num_of_balls()
         self.ball_q.put(num_balls)
 

@@ -1,6 +1,7 @@
+#https://github.com/AmitNutman/BallProj
+#עמית נוטמן ואורי פרסמן
+
 import pygame
-import sys
-import multiprocessing
 
 
 
@@ -11,6 +12,10 @@ class Gui():
         constructor
         :param width: the screens width
         :param height: the screens height
+        :param ball_q: the q for the ball process
+        :param printing_q: the q fot the printing process
+        :param collision_q: the q for the collision process
+        :param gui_q: the q for the drawing process
         """
         self.width = width  # screen width
         self.height = height  # screen height
@@ -23,6 +28,11 @@ class Gui():
 
 
     def draw_ball(self, ball_processes):
+        """
+        draws all balls dict on screen
+        :param ball_processes: all processes of all balls
+        :return: None
+        """
         self.printing_q.put("GUI process started")
         running = True
         while running:
