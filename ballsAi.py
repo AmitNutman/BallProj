@@ -1,3 +1,6 @@
+#שני צוקרמן ועמית נוטמן
+#
+
 import pygame
 import sys
 import threading
@@ -22,6 +25,11 @@ class GameGUI():
 
 
     def add_ball(self, num_ball):
+        """
+        adds new ball to list
+        :param num_ball: the number of the ball
+        :return: None
+        """
         color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         num_of_shows = random.randint(1, 10)
         for i in range(num_of_shows):
@@ -41,17 +49,20 @@ class GameGUI():
             prompt = (
                 f"Current Game State:\n"
                 f"- Ball position (X, Y): {pos}\n"
-                f"- other balls positions (X, Y): {positions}\n"
+                f"- other balls positions in a list (X, Y): {positions}\n"
+                f"- radius : {50}\n"
                 f"return True if collide else return False"
             )
 
-            if self.query_local_ai(prompt).strip().lower() == "true":
-                self.num_collisions += 1
+
+            #start ai only if there are other balls
+            if positions:
+                threading.Thread(target=self.check_ai_result, args=(prompt,), daemon = True).start()
 
             print(f"ball number {num_ball} add")
             print("num balls on screen: " + str(len(self.balls)))
 
-            time.sleep(2)
+            time.sleep(5)
 
             #delete the ball so it will disapear
             if num_ball in self.balls:
@@ -60,11 +71,24 @@ class GameGUI():
             print(f"ball number {num_ball} deleted")
             print("num balls on screen: " + str(len(self.balls)))
 
-            time.sleep(0.5)
+            time.sleep(2.0)
 
+    def check_ai_result(self, prompt):
+        """
+        checks if ai returned that the balls collide or not
+        :param prompt: the prompt to send to ai
+        :return: None
+        """
+        result = self.query_local_ai(prompt).strip().lower()
+        if result == "true":
+            self.num_collisions += 1
 
 
     def draw_circle(self):
+        """
+        draws the ball on screen
+        :return: None
+        """
         while True:
 
             #clean the screen before all balls in the list will be drawn again
@@ -83,31 +107,34 @@ class GameGUI():
                     # closes the program
                     sys.exit()
 
-            #how many active threads are in the system - main thread is always active
-            if threading.active_count() < 2:
-                # closes py_game window
+            for t in ball_threads:
+                if not t.is_alive():
+                    ball_threads.remove(t)
+
+            if ball_threads == []:
+                print("collision count = ", self.num_collisions)
                 pygame.quit()
-                # closes the program
                 sys.exit()
+
 
 
     def query_local_ai(self, prompt):
         """
-
-        :param prompt:
-        :return:
+        ai agent checks if balls collided based on the instructions
+        :param prompt: the prompt to ai
+        :return: str - true / false/ do nothing
         """
 
         OLLAMA_API_URL = "http://localhost:11434/api/chat"
         OLLAMA_MODEL = "gemma2"
 
-        system_instructions = ("You are an AI agent that checks how many times circles collide. For each new circle drawn, you will receive its position, its radius, and the positions of all other circles; all circles have the same radius. Whenever a collision occurs, return true. Do nothing else, and do not provide any further explanation.")
+        system_instructions = "You are an AI agent that checks if ball collide others ballas  - you will get ball position is (x,y) other balls position in list [(x1,y1), (x2,y2)...] all balls's radius is 50, please check if first ball collide with one or more of the others balls in the list, answer only in one words: true if collide else false"
 
         payload = {"model": OLLAMA_MODEL, "messages": [{"role": "system", "content": system_instructions}, {"role": "system", "content": prompt}], "stream": False}
 
         try:
             print("sending the game state to the local AI to analyze")
-            response = requests.post(OLLAMA_API_URL, json=payload, timeout=10)
+            response = requests.post(OLLAMA_API_URL, json=payload, timeout=30)
 
             if response.status_code == 200:
                 result = response.json()
@@ -132,9 +159,12 @@ if __name__ == "__main__":
 
     gui = GameGUI(700, 500)
 
+    ball_threads = []
     for i in range(int(num_balls)):
-        threading.Thread(target=gui.add_ball, args=(i,)).start()
-        time.sleep(0.5)
+        t = threading.Thread(target=gui.add_ball, args=(i,))
+        ball_threads.append(t)
+        t.start()
+        time.sleep(5)
 
     gui.draw_circle()
 
